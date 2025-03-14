@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome SAI!</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            background: #1a1a1a; /* 深色背景 */
+            color: #fff;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #title {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 10px #ff0, 0 0 20px #ff0, 0 0 30px #ff0;
+            animation: blink 1s infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        #game {
+            position: relative;
+            width: 300px;
+            height: 400px;
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid #fff;
+            overflow: hidden;
+        }
+
+        #player {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            background-color: #fff;
+            cursor: pointer;
+        }
+
+        .obstacle {
+            position: absolute;
+            top: -50px;
+            width: 50px;
+            height: 50px;
+            background-color: #000;
+            border: 2px solid #fff;
+        }
+
+        #start-screen, #end-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #fff;
+        }
+
+        #start-screen button, #end-screen button {
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            background-color: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            cursor: pointer;
+        }
+
+        #score, #high-score {
+            position: absolute;
+            top: 20px;
+            color: #fff;
+            font-size: 1.2rem;
+        }
+
+        #score { left: 20px; }
+        #high-score { right: 20px; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="title">Welcome SAI!</div>
+        <div id="game">
+            <div id="player"></div>
+        </div>
+        <div id="start-screen">
+            <button onclick="startGame()">Start</button>
+        </div>
+        <div id="end-screen" style="display: none;">
+            <p>Game Over!</p>
+            <p>Score: <span id="final-score">0</span></p>
+            <p>High Score: <span id="high-score-display">0</span></p>
+            <button onclick="restartGame()">Restart</button>
+        </div>
+        <div id="score">Score: 0</div>
+        <div id="high-score">High Score: 0</div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('game');
+        const player = document.getElementById('player');
+        const startScreen = document.getElementById('start-screen');
+        const endScreen = document.getElementById('end-screen');
+        const scoreDisplay = document.getElementById('score');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const highScoreDisplay = document.getElementById('high-score-display');
+        const highScoreElement = document.getElementById('high-score');
+
+        let score = 0;
+        let highScore = 0;
+        let gameInterval;
+        let obstacleInterval;
+        let isDragging = false;
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            endScreen.style.display = 'none';
+            gameContainer.innerHTML = '<div id="player"></div>';
+            score = 0;
+            scoreDisplay.innerText = 'Score: 0';
+            player.style.left = '50%';
+            gameInterval = setInterval(updateGame, 20);
+            obstacleInterval = setInterval(createObstacle, 1000);
+        }
+
+        function updateGame() {
+            score++;
+            scoreDisplay.innerText = `Score: ${score}`;
+        }
+
+        function createObstacle() {
+            const obstacle = document.createElement('div');
+            obstacle.classList.add('obstacle');
+            obstacle.style.left = `${Math.random() * 250}px`;
+            gameContainer.appendChild(obstacle);
+            moveObstacle(obstacle);
+        }
+
+        function moveObstacle(obstacle) {
+            let obstaclePosition = 0;
+            const obstacleInterval = setInterval(() => {
+                obstaclePosition += 5;
+                obstacle.style.top = `${obstaclePosition}px`;
+
+                if (obstaclePosition > 350) {
+                    if (checkCollision(obstacle)) {
+                        clearInterval(obstacleInterval);
+                        endGame();
+                    } else {
+                        obstacle.remove();
+                        clearInterval(obstacleInterval);
+                    }
+                }
+            }, 20);
+        }
+
+        function checkCollision(obstacle) {
+            const playerRect = player.getBoundingClientRect();
+            const obstacleRect = obstacle.getBoundingClientRect();
+
+            return !(
+                playerRect.top > obstacleRect.bottom ||
+                playerRect.bottom < obstacleRect.top ||
+                playerRect.left > obstacleRect.right ||
+                playerRect.right < obstacleRect.left
+            );
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(obstacleInterval);
+            endScreen.style.display = 'block';
+            finalScoreDisplay.innerText = score;
+            if (score > highScore) {
+                highScore = score;
+                highScoreDisplay.innerText = highScore;
+                highScoreElement.innerText = `High Score: ${highScore}`;
+            }
+        }
+
+        function restartGame() {
+            startGame();
+        }
+
+        // 电脑端：鼠标控制移动
+        player.addEventListener('mousedown', () => {
+            isDragging = true;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const gameRect = gameContainer.getBoundingClientRect();
+                let newLeft = e.clientX - gameRect.left - 25; // 25 是玩家方块宽度的一半
+                if (newLeft < 0) newLeft = 0;
+                if (newLeft > 250) newLeft = 250;
+                player.style.left = `${newLeft}px`;
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // 手机端：触摸控制移动
+        player.addEventListener('touchstart', () => {
+            isDragging = true;
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                const gameRect = gameContainer.getBoundingClientRect();
+                let newLeft = e.touches[0].clientX - gameRect.left - 25;
+                if (newLeft < 0) newLeft = 0;
+                if (newLeft > 250) newLeft = 250;
+                player.style.left = `${newLeft}px`;
+            }
+        });
+
+        window.addEventListener('touchend', () => {
+            isDragging = false;
+        });
+    </script>
+</body>
+</html>
